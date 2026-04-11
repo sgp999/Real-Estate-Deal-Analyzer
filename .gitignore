@@ -1,6 +1,6 @@
-__pycache__/
-*.pyc
-.venv/
 .env
+.venv/
+__pycache__/
 .DS_Store
-zHelpCmds.txt
+*.pdf
+*.log
