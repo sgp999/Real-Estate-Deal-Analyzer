@@ -1,11 +1,11 @@
-import streamlit as st
-from pypdf import PdfReader
-from openai import OpenAI
 import os
 
-st.set_page_config(page_title="PDF Comparison", layout="wide")
+import streamlit as st
+from openai import OpenAI
+from pypdf import PdfReader
 
-# Clean UI spacing
+st.set_page_config(page_title="Homeowners Policy Comparison", layout="wide")
+
 st.markdown(
     """
     <style>
@@ -19,49 +19,54 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# OpenAI client
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+def get_openai_client():
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return None
+    return OpenAI(api_key=api_key)
 
 
 def extract_text(file):
     reader = PdfReader(file)
     text = ""
+
     for page in reader.pages:
-        if page.extract_text():
-            text += page.extract_text()
-    return text
+        page_text = page.extract_text()
+        if page_text:
+            text += page_text + "\n"
+
+    return text.strip()
 
 
-def chunk_text(text, chunk_size=2000, overlap=200):
-    chunks = []
-    start = 0
-
-    while start < len(text):
-        end = start + chunk_size
-        chunks.append(text[start:end])
-        start += chunk_size - overlap
-
-    return chunks
-
-
-def compare_policies(text1, text2):
+def compare_homeowners_policies(text1, text2, client):
     prompt = f"""
-You are an insurance expert.
+You are an expert at comparing homeowners insurance policies.
 
-Compare these two insurance policies and return:
+Compare these two homeowners insurance policies and return a clear, practical comparison for a homeowner.
 
-1. Plan Name
-2. Premium
-3. Deductible
-4. Out-of-pocket max
-5. Key differences
-6. Which is better and why
+Focus on:
+1. Policy name / insurer
+2. Dwelling coverage
+3. Other structures coverage
+4. Personal property coverage
+5. Loss of use / additional living expenses
+6. Personal liability
+7. Medical payments to others
+8. Deductible
+9. Major exclusions or limitations
+10. Endorsements or extra protections
+11. Key differences
+12. Which policy appears better overall and why
+
+Keep the explanation easy to understand.
+Use headings and bullet points.
 
 Policy 1:
-{text1[:4000]}
+{text1[:6000]}
 
 Policy 2:
-{text2[:4000]}
+{text2[:6000]}
 """
 
     response = client.responses.create(
@@ -69,37 +74,51 @@ Policy 2:
         input=prompt,
     )
 
-    return response.output[0].content[0].text
+    return response.output_text
 
 
-# UI
-st.title("PDF Insurance Policy Comparison")
+st.markdown(
+    "<h1 style='margin-top:0;'>Homeowners Policy Comparison</h1>",
+    unsafe_allow_html=True,
+)
+
+st.write("Upload two homeowners insurance PDF policies and compare them with AI.")
 
 col1, col2 = st.columns(2)
 
 with col1:
-    file1 = st.file_uploader("Upload Policy 1", type=["pdf"])
+    file1 = st.file_uploader("Upload Homeowners Policy 1", type=["pdf"], key="file1")
 
 with col2:
-    file2 = st.file_uploader("Upload Policy 2", type=["pdf"])
+    file2 = st.file_uploader("Upload Homeowners Policy 2", type=["pdf"], key="file2")
 
 if st.button("Compare Policies"):
     if not file1 or not file2:
-        st.warning("Please upload both PDF files.")
+        st.warning("Please upload both homeowners policy PDF files.")
     else:
-        with st.spinner("Extracting text..."):
+        client = get_openai_client()
+
+        if client is None:
+            st.error("Missing OPENAI_API_KEY environment variable.")
+            st.stop()
+
+        with st.spinner("Reading policy PDFs..."):
             text1 = extract_text(file1)
             text2 = extract_text(file2)
 
-        with st.spinner("Analyzing with AI..."):
-            result = compare_policies(text1, text2)
+        if not text1 or not text2:
+            st.error("Could not extract text from one or both PDFs.")
+            st.stop()
+
+        with st.spinner("Comparing homeowners policies..."):
+            result = compare_homeowners_policies(text1, text2, client)
 
         st.subheader("Comparison Result")
         st.write(result)
 
-        # Download button
         st.download_button(
             label="Download Comparison",
             data=result,
-            file_name="policy_comparison.txt",
+            file_name="homeowners_policy_comparison.txt",
+            mime="text/plain",
         )
