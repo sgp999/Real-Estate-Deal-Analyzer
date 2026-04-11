@@ -1,6 +1,29 @@
+# Secrets
 .env
+.streamlit/secrets.toml
+
+# Virtual environments
 .venv/
+venv/
+
+# Python cache
 __pycache__/
+*.pyc
+
+# Mac files
 .DS_Store
-*.pdf
+
+# Logs
 *.log
+
+# PDFs (optional — remove if you WANT to upload PDFs)
+*.pdf
+
+# Your custom file
+zHelpCmds.txt
+
+# VS Code
+.vscode/
+
+# Misc
+*.sqlite3
